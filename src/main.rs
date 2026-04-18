@@ -47,7 +47,7 @@ fn main() -> Result<()> {
 
     if !history.is_empty() {
         let session = Session { moves: history };
-        session.save(&config.source_dir)?;
+        session.save(&config.source_dir, &config.history_file)?;
         info!("History saved. You can undo this operation with --undo");
     }
 

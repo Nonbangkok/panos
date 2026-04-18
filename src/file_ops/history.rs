@@ -19,16 +19,16 @@ pub struct Session {
 
 impl Session {
     /// Save Session to JSON file
-    pub fn save(&self, source_dir: &Path) -> Result<()> {
-        let history_path = source_dir.join(".panos_history.json");
+    pub fn save(&self, source_dir: &Path, history_file: &str) -> Result<()> {
+        let history_path = source_dir.join(history_file);
         let content = serde_json::to_string_pretty(self)?;
         std::fs::write(history_path, content)?;
         Ok(())
     }
 
     /// Load Session from JSON file
-    pub fn load(source_dir: &Path) -> Result<Self> {
-        let history_path = source_dir.join(".panos_history.json");
+    pub fn load(source_dir: &Path, history_file: &str) -> Result<Self> {
+        let history_path = source_dir.join(history_file);
         if !history_path.exists() {
             return Ok(Session::default());
         }
