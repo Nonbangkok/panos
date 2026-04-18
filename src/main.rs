@@ -5,7 +5,7 @@ use clap::Parser;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-use panos::{Args, Config, load_config, organize, remove_empty_dirs};
+use panos::{Args, Config, load_config, organize, remove_empty_dirs, watch_mode};
 
 fn main() -> Result<()> {
     // Initialize logging
@@ -35,6 +35,10 @@ fn main() -> Result<()> {
 
     organize(&config, args.dry_run)?;
     remove_empty_dirs(&config.source_dir, args.dry_run)?;
+
+    if args.watch {
+        watch_mode(&config, args.dry_run)?;
+    }
 
     Ok(())
 }
