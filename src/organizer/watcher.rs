@@ -1,3 +1,5 @@
+//! Watcher logic
+
 use anyhow::{Context, Result};
 use notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::atomic::{AtomicBool, Ordering};
