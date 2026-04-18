@@ -38,6 +38,12 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<Vec<MoveRecord>> {
                 return false;
             }
 
+            if name == config.trash_dir.to_str().unwrap_or("") || 
+                name == config.unknown_dir.to_str().unwrap_or("") ||
+                name == config.history_file {
+                    return false;
+            }
+
             // Ignore destination directories
             for rule in &config.rules {
                 if name == rule.destination.to_str().unwrap_or("") {
