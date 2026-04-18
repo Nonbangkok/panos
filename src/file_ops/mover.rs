@@ -3,17 +3,20 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use tracing::info;
+use chrono::Utc;
+
+use crate::file_ops::history::MoveRecord;
 
 /// Move a file to destination with conflict resolution
 pub fn move_file(
     source: &std::path::Path,
     dest_dir: &std::path::Path,
     dry_run: bool,
-) -> Result<()> {
+) -> Result<Option<MoveRecord>> {
     let source_parent = source.parent().ok_or_else(|| anyhow::anyhow!("Could not get parent directory"))?;
     if source_parent == dest_dir {
         // File is already in the target directory, nothing to do
-        return Ok(());
+        return Ok(None);
     }
 
     let file_name: &std::ffi::OsStr = source
@@ -51,8 +54,13 @@ pub fn move_file(
     info!("Moving {:?} to {:?}", source, dest_path);
 
     if !dry_run {
-        std::fs::rename(source, dest_path)?;
+        std::fs::rename(source, &dest_path)?;
+        return Ok(Some(MoveRecord {
+            source: source.to_path_buf(),
+            destination: dest_path,
+            timestamp: Utc::now(),
+        }));
     }
 
-    Ok(())
+    Ok(None)
 }
