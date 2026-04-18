@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/panos_logo.png" width="200" alt="PANOS Logo">
+  <img src="assets/panos_logo.png" width="350" alt="PANOS Logo">
 </p>
 
 # 🌌 PANOS: Universal File Organizer OS
