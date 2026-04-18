@@ -62,6 +62,11 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<Vec<MoveRecord>> {
                 if let Some(record) = move_file(path, &dest_dir, dry_run)? {
                     history.push(record);
                 }
+            } else {
+                let unknown_dir: PathBuf = config.source_dir.join(&config.unknown_dir);
+                if let Some(record) = move_file(path, &unknown_dir, dry_run)? {
+                    history.push(record);
+                }
             }
         }
     }

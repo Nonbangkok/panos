@@ -44,6 +44,7 @@ pub struct Config {
     pub temp_extensions: Vec<String>,
     pub ignore_patterns: Vec<String>,
     pub trash_dir: PathBuf,
+    pub unknown_dir: PathBuf,
     pub history_file: String,
     pub exclude_hidden: bool,
 }
