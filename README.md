@@ -14,12 +14,12 @@
 
 ## ✨ Features
 
-- ⚡ **Lightning Fast**: Built with Rust for maximum performance and memory safety.
-- 📐 **Rule-Based Sorting**: Organize files by extensions or complex naming patterns.
-- 🧪 **Safety First**: Includes a `--dry-run` mode to preview changes before they happen.
-- 🧹 **Deep Clean**: Automatically removes empty directories and handles temporary file cleanup.
-- 📦 **Zero-Config Ready**: Works out of the box with sensible defaults, yet fully customizable via `panos.toml`.
-- 🔄 **Watch Mode**: Real-time monitoring for instant organization as files arrive (Optional).
+- ⚡ **Lightning Fast**: High-performance directory traversal using `WalkDir` and pre-compiled glob patterns for O(1) matching speed during execution.
+- 📐 **Intelligent Rule Engine**: Support for both extension-based sorting and complex glob pattern matching (e.g., `Invoice_*.pdf`).
+- 🧪 **Safety First**: Comprehensive `--dry-run` mode and intelligent conflict resolution (automatic suffixing) to prevent data loss.
+- 🧹 **Trash System**: specialized handling for temporary files (`.tmp`, `.crdownload`), moving them to a dedicated `.panos_trash` for safe review.
+- 🌳 **Deep Clean**: Recursive removal of empty directories after organization to keep your filesystem pristine.
+- 🔄 **Watch Mode**: (Target: Phase 3) Real-time daemonized monitoring.
 
 ---
 
@@ -71,6 +71,14 @@ patterns = ["Invoice_*", "Report_*"]
 destination = "Work/Documents"
 ```
 
+## 🧠 Technical Core
+
+PANOS is built with a focus on **efficiency** and **industrial-grade error handling**:
+
+- **Pre-compiled Regex/Globs**: Patterns are compiled once at startup, ensuring that millions of files can be matched without re-parsing overhead.
+- **Atomic Operations**: Moves are designed to be as atomic as possible, with robust error recovery if a file is "In Use" or "Permission Denied".
+- **Recursive State-Awareness**: The scanner understands directory depth and ensures that empty branch nodes are pruned only after their children have been processed.
+
 ---
 
 ## 📂 Project Structure
@@ -100,6 +108,15 @@ The project follows a modular Rust architecture for maintainability and scalabil
 3. Standardize code style with `cargo fmt`.
 4. Ensure all tests pass: `cargo test`.
 5. Submit a Pull Request with a clear description of changes.
+
+---
+
+## 🗺 Roadmap
+
+- [x] **Phase 1: Core Sorter**: Extension-based sorting & Conflict resolution.
+- [x] **Phase 2: Advanced Logic**: Glob pattern matching & Temp file cleanup.
+- [ ] **Phase 3: Automation**: Background `watch` mode using `notify` and `Undo` session logging.
+- [ ] **Phase 4: Concurrency**: Integration with `Rayon` for ultra-large volume processing.
 
 ---
 
