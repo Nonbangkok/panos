@@ -15,6 +15,6 @@ pub fn find_rule_for_file<'a>(path: &std::path::Path, rules: &'a [Rule]) -> Opti
 pub fn is_temp_file(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
-        .map(|ext| matches!(ext, "tmp" | "crdownload" | "part"))
+        .map(|ext| matches!(ext, "tmp" | "crdownload" | "part" | "log"))
         .unwrap_or(false)
 }

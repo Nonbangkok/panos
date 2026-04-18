@@ -23,6 +23,20 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<()> {
     for entry in WalkDir::new(&config.source_dir)
         .min_depth(1)
         .into_iter()
+        .filter_entry(|e| {
+            // Optimization: Skip scanning into destination directories or hidden folders
+            let name = e.file_name().to_str().unwrap_or("");
+            if name.starts_with('.') && name != "." && name != ".." {
+                return false;
+            }
+            
+            for rule in &config.rules {
+                if name == rule.destination.to_str().unwrap_or("") {
+                    return false;
+                }
+            }
+            true
+        })
         .filter_map(|e: std::result::Result<walkdir::DirEntry, walkdir::Error>| e.ok())
     {
         if entry.file_type().is_file() {

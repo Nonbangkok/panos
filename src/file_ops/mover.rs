@@ -10,6 +10,12 @@ pub fn move_file(
     dest_dir: &std::path::Path,
     dry_run: bool,
 ) -> Result<()> {
+    let source_parent = source.parent().ok_or_else(|| anyhow::anyhow!("Could not get parent directory"))?;
+    if source_parent == dest_dir {
+        // File is already in the target directory, nothing to do
+        return Ok(());
+    }
+
     let file_name: &std::ffi::OsStr = source
         .file_name()
         .ok_or_else(|| anyhow::anyhow!("Could not get file name"))?;
