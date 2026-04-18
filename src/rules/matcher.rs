@@ -14,9 +14,9 @@ pub fn find_rule_for_file<'a>(path: &std::path::Path, rules: &'a [Rule]) -> Opti
 }
 
 /// Check if file is a temporary file
-pub fn is_temp_file(path: &Path) -> bool {
+pub fn is_temp_file(path: &Path, temp_extensions: &[String]) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
-        .map(|ext| matches!(ext, "tmp" | "crdownload" | "part" | "log"))
+        .map(|ext| temp_extensions.contains(&ext.to_lowercase()))
         .unwrap_or(false)
 }

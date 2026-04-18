@@ -29,10 +29,16 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<Vec<MoveRecord>> {
         .filter_entry(|e| {
             // Optimization: Skip scanning into destination directories or hidden folders
             let name = e.file_name().to_str().unwrap_or("");
-            if name.starts_with('.') && name != "." && name != ".." {
+            if config.exclude_hidden && name.starts_with('.') && name != "." && name != ".." {
                 return false;
             }
 
+            // Ignore specific patterns
+            if config.ignore_patterns.iter().any(|pattern| name == *pattern) {
+                return false;
+            }
+
+            // Ignore destination directories
             for rule in &config.rules {
                 if name == rule.destination.to_str().unwrap_or("") {
                     return false;
@@ -46,8 +52,8 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<Vec<MoveRecord>> {
             let path: &std::path::Path = entry.path();
 
             // cleanup temp file
-            if is_temp_file(path) {
-                let trash_dir: PathBuf = config.source_dir.join(".panos_trash");
+            if is_temp_file(path, &config.temp_extensions) {
+                let trash_dir: PathBuf = config.source_dir.join(&config.trash_dir);
                 if let Some(record) = move_file(path, &trash_dir, dry_run)? {
                     history.push(record);
                 }
