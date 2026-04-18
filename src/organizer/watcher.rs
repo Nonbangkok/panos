@@ -36,10 +36,10 @@ fn run_event_loop(
     dry_run: bool,
 ) -> Result<()> {
     let mut last_event_time = None;
-    let debounce_duration = Duration::from_secs(2);
+    let debounce_duration = Duration::from_secs(config.debounce_seconds);
 
     loop {
-        match rx.recv_timeout(Duration::from_millis(500)) {
+        match rx.recv_timeout(Duration::from_millis(config.polling_interval_ms)) {
             Ok(Ok(event)) => {
                 // 1. Check if we are currently organizing (Atomic Lock)
                 if IS_ORGANIZING.load(Ordering::SeqCst) {
@@ -82,22 +82,15 @@ fn run_event_loop(
 
 /// Determines if an event should be ignored to prevent loops or noise
 fn should_ignore(event: &Event, config: &Config) -> bool {
-    static IGNORE_PATTERNS: &[&str] = &[
-        ".DS_Store",
-        ".git",
-        ".svn",
-        ".hg",
-        "Thumbs.db",
-        "desktop.ini",
-        "node_modules",
-        "target",
-        ".vscode",
-    ];
-
     for path in &event.paths {
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            // 1. Ignore specific patterns AND any hidden files/folders (dotfiles)
-            if name.starts_with('.') || IGNORE_PATTERNS.iter().any(|pattern| name == *pattern) {
+            // 1.1. Ignore specific patterns
+            if config.ignore_patterns.iter().any(|pattern| name == *pattern) {
+                return true;
+            }
+            
+            // 1.2. Ignore hidden files/folders (dotfiles)
+            if config.exclude_hidden && name.starts_with('.') {
                 return true;
             }
         }
