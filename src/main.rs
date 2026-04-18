@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 use clap::Parser;
-use tracing::{Level, info};
-use tracing_subscriber::FmtSubscriber;
+use tracing::info;
+use tracing_subscriber::{FmtSubscriber,EnvFilter};
 
 use panos::{
     Args, Config, load_config, organize, remove_empty_dirs, watch_mode,
@@ -12,10 +12,14 @@ use panos::{
 };
 
 fn main() -> Result<()> {
-    // Initialize logging
-    let subscriber: FmtSubscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(filter)
         .finish();
+    
     tracing::subscriber::set_global_default(subscriber)?;
 
     let args: Args = Args::parse();
