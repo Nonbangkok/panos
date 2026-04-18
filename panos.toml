@@ -1,4 +1,4 @@
-source_dir = "SOURCE_DIR"
+source_dir = ".test_data"
 watch_mode = false
 
 [[rules]]
