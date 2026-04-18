@@ -39,6 +39,13 @@ pub struct Config {
     pub source_dir: PathBuf,
     pub rules: Vec<Rule>,
     pub watch_mode: bool,
+    pub debounce_seconds: u64,
+    pub polling_interval_ms: u64,
+    pub temp_extensions: Vec<String>,
+    pub ignore_patterns: Vec<String>,
+    pub trash_dir: PathBuf,
+    pub history_file: String,
+    pub exclude_hidden: bool,
 }
 
 pub fn load_config(path: &std::path::Path) -> Result<Config> {

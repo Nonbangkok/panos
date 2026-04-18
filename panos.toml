@@ -1,5 +1,22 @@
 source_dir = ".test_data"
 watch_mode = false
+debounce_seconds = 2
+polling_interval_ms = 500
+temp_extensions = ["tmp", "crdownload", "part", "log"]
+ignore_patterns = [
+    ".DS_Store",
+    ".git",
+    ".svn",
+    ".hg",
+    "Thumbs.db",
+    "desktop.ini",
+    "node_modules",
+    "target",
+    ".vscode",
+]
+trash_dir = ".panos_trash" # Directory to move files to when undoing
+history_file = ".panos_history.json" # File to store history of moves
+exclude_hidden = false # Exclude hidden files
 
 [[rules]]
 name = "Images"
