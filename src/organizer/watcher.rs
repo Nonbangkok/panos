@@ -3,9 +3,9 @@
 use anyhow::{Context, Result};
 use notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
-use tracing::{error, info, warn, debug};
+use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
 use crate::organizer::organize;
@@ -15,13 +15,14 @@ static IS_ORGANIZING: AtomicBool = AtomicBool::new(false);
 
 pub fn watch_mode(config: &Config, dry_run: bool) -> Result<()> {
     let source_dir = &config.source_dir;
-    
+
     let (tx, rx) = channel();
 
-    let mut watcher = RecommendedWatcher::new(tx, NotifyConfig::default())
-        .context("Failed to create watcher")?;
+    let mut watcher =
+        RecommendedWatcher::new(tx, NotifyConfig::default()).context("Failed to create watcher")?;
 
-    watcher.watch(source_dir, RecursiveMode::Recursive)
+    watcher
+        .watch(source_dir, RecursiveMode::Recursive)
         .context(format!("Failed to watch directory: {:?}", source_dir))?;
 
     info!("👀 Watching for changes in: {:?}", source_dir);
@@ -29,7 +30,11 @@ pub fn watch_mode(config: &Config, dry_run: bool) -> Result<()> {
     run_event_loop(rx, config, dry_run)
 }
 
-fn run_event_loop(rx: Receiver<Result<Event, notify::Error>>, config: &Config, dry_run: bool) -> Result<()> {
+fn run_event_loop(
+    rx: Receiver<Result<Event, notify::Error>>,
+    config: &Config,
+    dry_run: bool,
+) -> Result<()> {
     let mut last_event_time = None;
     let debounce_duration = Duration::from_secs(2);
 
@@ -56,17 +61,17 @@ fn run_event_loop(rx: Receiver<Result<Event, notify::Error>>, config: &Config, d
                 if let Some(last_time) = last_event_time {
                     if last_time.elapsed() >= debounce_duration {
                         info!("🚀 Change detected and stabilized. Running organization...");
-                        
+
                         // Set lock before starting
                         IS_ORGANIZING.store(true, Ordering::SeqCst);
-                        
+
                         if let Err(e) = organize(config, dry_run) {
                             error!("Organization failed during watch mode: {:?}", e);
                         }
-                        
+
                         // Release lock after finishing
                         IS_ORGANIZING.store(false, Ordering::SeqCst);
-                        
+
                         last_event_time = None;
                     }
                 }
@@ -78,9 +83,15 @@ fn run_event_loop(rx: Receiver<Result<Event, notify::Error>>, config: &Config, d
 /// Determines if an event should be ignored to prevent loops or noise
 fn should_ignore(event: &Event, config: &Config) -> bool {
     static IGNORE_PATTERNS: &[&str] = &[
-        ".DS_Store", ".git", ".svn", ".hg",
-        "Thumbs.db","desktop.ini",
-        "node_modules", "target", ".vscode"
+        ".DS_Store",
+        ".git",
+        ".svn",
+        ".hg",
+        "Thumbs.db",
+        "desktop.ini",
+        "node_modules",
+        "target",
+        ".vscode",
     ];
 
     for path in &event.paths {

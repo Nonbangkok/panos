@@ -1,11 +1,10 @@
 //! Empty directory removing and handling operations
 
-use walkdir::WalkDir;
 use anyhow::Result;
 use tracing::info;
+use walkdir::WalkDir;
 
 pub fn remove_empty_dirs(root: &std::path::Path, dry_run: bool) -> Result<()> {
-
     for entry in WalkDir::new(root)
         .contents_first(true)
         .into_iter()

@@ -56,7 +56,10 @@ pub fn load_config(path: &std::path::Path) -> Result<Config> {
     }
 
     if !config.source_dir.exists() {
-        return Err(anyhow::anyhow!("Source directory does not exist: {:?}", config.source_dir));
+        return Err(anyhow::anyhow!(
+            "Source directory does not exist: {:?}",
+            config.source_dir
+        ));
     }
 
     Ok(config)
