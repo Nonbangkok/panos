@@ -1,5 +1,6 @@
 use panos::file_ops::history::{MoveRecord, Session};
 use panos::organizer::undo::run_undo;
+use panos::ui::NoopReporter;
 use std::fs;
 use tempfile::TempDir;
 
@@ -27,7 +28,7 @@ fn test_undo_single_file() -> anyhow::Result<()> {
 
     let config = test_config(root);
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(src.exists(), "Source file should be restored at {:?}", src);
     assert!(
         !dst.exists(),
@@ -60,7 +61,7 @@ fn test_undo_multiple_files_filo_order() -> anyhow::Result<()> {
 
     let config = test_config(root);
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
 
     for i in 0..5 {
         assert!(
@@ -97,7 +98,7 @@ fn test_undo_dry_run_no_changes() -> anyhow::Result<()> {
 
     let config = test_config(root);
 
-    run_undo(&config, true)?;
+    run_undo(&config, true, &NoopReporter)?;
     assert!(!src.exists(), "Source should NOT be created in dry run");
     assert!(dst.exists(), "Destination should STILL exist in dry run");
     assert!(
@@ -117,7 +118,7 @@ fn test_undo_empty_session() -> anyhow::Result<()> {
 
     let config = test_config(root);
 
-    let result = run_undo(&config, false);
+    let result = run_undo(&config, false, &NoopReporter);
     assert!(result.is_ok(), "Empty undo should succeed without error");
     Ok(())
 }
@@ -130,7 +131,7 @@ fn test_undo_missing_history_file() -> anyhow::Result<()> {
     config.source_dir = tmp.path().to_path_buf();
     config.history_file = "nonexistent.json".to_string();
 
-    let result = run_undo(&config, false);
+    let result = run_undo(&config, false, &NoopReporter);
     assert!(
         result.is_ok(),
         "Missing history file should be treated as empty success"
@@ -158,7 +159,7 @@ fn test_undo_missing_file_at_destination() -> anyhow::Result<()> {
 
     let config = test_config(root);
 
-    let result = run_undo(&config, false);
+    let result = run_undo(&config, false, &NoopReporter);
     assert!(
         result.is_ok(),
         "Should skip missing destination files without failing"
@@ -194,7 +195,7 @@ fn test_undo_massive_batch_500() -> anyhow::Result<()> {
 
     let config = test_config(root);
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert_eq!(
         fs::read_dir(root.join("batch"))?.count(),
         500,
@@ -226,7 +227,7 @@ fn test_undo_unicode_paths() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.exists(),
         "Unicode filename should be restored correctly"
@@ -257,7 +258,7 @@ fn test_undo_spaces_and_special_chars() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.exists(),
         "Filename with spaces and symbols should be restored"
@@ -288,7 +289,7 @@ fn test_undo_deeply_nested_revert() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.exists(),
         "Deeply nested source path should be recreated and file restored"
@@ -308,7 +309,7 @@ fn test_undo_history_cleanup_after_success() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = h_file.to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         !root.join(h_file).exists(),
         "History file must be deleted after successful operation"
@@ -347,7 +348,7 @@ fn test_undo_partial_success_mixed() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "mixed.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(src1.exists(), "Existing file should be reverted");
     assert!(!src2.exists(), "Missing file should still be missing");
     Ok(())
@@ -376,7 +377,7 @@ fn test_undo_source_parent_creation() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.parent().unwrap().exists(),
         "Source parent directory should be automatically recreated"
@@ -411,7 +412,7 @@ fn test_undo_revert_from_trash() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.exists(),
         "File should be moved back from trash directory"
@@ -442,7 +443,7 @@ fn test_undo_revert_from_unknown() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.exists(),
         "File should be moved back from unknown directory"
@@ -472,10 +473,10 @@ fn test_undo_idempotency() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = h_file.to_string();
 
-    run_undo(&config, false)?; // First run
+    run_undo(&config, false, &NoopReporter)?; // First run
     assert!(src.exists(), "First undo should succeed");
 
-    let result = run_undo(&config, false); // Second run
+    let result = run_undo(&config, false, &NoopReporter); // Second run
     assert!(
         result.is_ok(),
         "Second undo run with missing history should still be Ok"
@@ -507,7 +508,7 @@ fn test_undo_large_filename() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "h.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(src.exists(), "Extreme filename length should be handled");
     Ok(())
 }
@@ -534,7 +535,7 @@ fn test_undo_move_record_timestamps() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "history.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(src.exists(), "Even old history records should be undoable");
     Ok(())
 }
@@ -561,7 +562,7 @@ fn test_undo_directory_recreation_on_revert() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.history_file = "h.json".to_string();
 
-    run_undo(&config, false)?;
+    run_undo(&config, false, &NoopReporter)?;
     assert!(
         src.exists(),
         "Files should be restored to deeply nested paths correctly"
@@ -577,7 +578,7 @@ fn test_undo_unmapped_history_file() -> anyhow::Result<()> {
     config.source_dir = tmp.path().to_path_buf();
     config.history_file = "wrong_name.json".to_string();
 
-    let result = run_undo(&config, false);
+    let result = run_undo(&config, false, &NoopReporter);
     assert!(
         result.is_ok(),
         "Changing history file name should just result in empty undo, not failure"
