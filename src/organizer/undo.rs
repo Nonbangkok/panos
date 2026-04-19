@@ -1,6 +1,7 @@
 //! Undo logic with file history
 
 use anyhow::{Context, Result};
+use rayon::prelude::*;
 use tracing::{info, warn};
 
 use crate::config::Config;
@@ -37,29 +38,40 @@ pub fn run_undo(config: &Config, dry_run: bool, reporter: &dyn ProgressReporter)
         "Undoing file movements...".to_string(),
     );
 
-    // 2. Loop in reverse (Important: Use .rev() to move the latest file back first)
-    for record in session.moves.iter().rev() {
-        reporter.update(
-            1,
-            format!("Undoing: {:?} -> {:?}", record.destination, record.source),
-        );
-        if record.destination.exists() {
-            if dry_run {
-                info!(
-                    "[DRY RUN] Would restore: {:?} -> {:?}",
-                    record.destination, record.source
+    let results: Vec<Result<()>> = session
+        .moves
+        .iter()
+        .rev()
+        .par_bridge()
+        .map(|record| {
+            reporter.update(
+                1,
+                format!("Undoing: {:?} -> {:?}", record.destination, record.source),
+            );
+            if record.destination.exists() {
+                if dry_run {
+                    info!(
+                        "[DRY RUN] Would restore: {:?} -> {:?}",
+                        record.destination, record.source
+                    );
+                }
+
+                if !dry_run {
+                    move_file(&record.destination, &record.source, dry_run)?;
+                }
+            } else {
+                warn!(
+                    "Could not find file at {:?}, skipping...",
+                    record.destination
                 );
             }
+            Ok(())
+        })
+        .collect();
 
-            if !dry_run {
-                move_file(&record.destination, &record.source, dry_run)?;
-            }
-        } else {
-            warn!(
-                "Could not find file at {:?}, skipping...",
-                record.destination
-            );
-        }
+    // Check for any errors in parallel execution
+    for res in results {
+        res?;
     }
 
     // 3. After Undo is completed, delete the history file to prevent duplication
