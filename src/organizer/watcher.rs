@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
-use crate::file_ops::Session;
+use crate::file_ops::{remove_empty_dirs, Session};
 use crate::organizer::organize;
 
 /// Global lock to prevent the watcher from reacting to our own file movements
@@ -138,6 +138,11 @@ fn process_stabilized_events(config: &Config, dry_run: bool) {
                 error!("Failed to save history: {}", e);
             }
             info!("History updated in watch mode.");
+
+            // Clean up empty directories
+            if let Err(e) = remove_empty_dirs(&config.source_dir, dry_run, &session.moves) {
+                error!("Failed to clean up empty directories: {}", e);
+            }
         }
         Err(e) => error!("Organization failed during watch mode: {:?}", e),
         _ => {}
