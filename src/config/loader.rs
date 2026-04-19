@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct Rule {
     pub name: String,
     pub extensions: Vec<String>,
@@ -13,6 +14,18 @@ pub struct Rule {
 
     #[serde(skip)]
     pub compiled_patterns: Vec<glob::Pattern>,
+}
+
+impl Default for Rule {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            extensions: vec![],
+            patterns: vec![],
+            destination: PathBuf::new(),
+            compiled_patterns: vec![],
+        }
+    }
 }
 
 impl Rule {
@@ -60,6 +73,7 @@ impl Rule {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct Config {
     pub source_dir: PathBuf,
     pub rules: Vec<Rule>,
@@ -72,6 +86,24 @@ pub struct Config {
     pub unknown_dir: PathBuf,
     pub history_file: String,
     pub exclude_hidden: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            source_dir: PathBuf::from("."),
+            rules: vec![],
+            watch_mode: false,
+            debounce_seconds: 2,
+            polling_interval_ms: 100,
+            temp_extensions: vec![],
+            ignore_patterns: vec![],
+            trash_dir: PathBuf::from(".panos_trash"),
+            unknown_dir: PathBuf::from(".panos_unknown"),
+            history_file: ".history.json".to_string(),
+            exclude_hidden: true,
+        }
+    }
 }
 
 impl Config {
