@@ -57,7 +57,14 @@ pub fn move_file(
         info!("[DRY RUN] Would move {:?} to {:?}", source, dest_path);
     } else {
         info!("Moving {:?} to {:?}", source, dest_path);
-        std::fs::rename(source, &dest_path)?;
+        if let Err(e) = std::fs::rename(source, &dest_path) {
+            if e.kind() == std::io::ErrorKind::CrossesDevices {
+                std::fs::copy(source, &dest_path)?;
+                std::fs::remove_file(source)?;
+            } else {
+                return Err(e.into());
+            }
+        }
     }
 
     Ok(Some(MoveRecord {
