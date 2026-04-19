@@ -2,4 +2,4 @@
 
 pub mod loader;
 
-pub use loader::{Config, Rule, load_config};
+pub use loader::{Config, Rule};

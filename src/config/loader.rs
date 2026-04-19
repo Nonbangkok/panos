@@ -32,6 +32,31 @@ impl Rule {
         }
         false
     }
+
+    pub fn sanitize(&mut self) {
+        // extensions sanitize
+        self.extensions = self
+            .extensions
+            .iter()
+            .map(|ext| {
+                let mut ext = ext.clone().to_lowercase();
+                if ext.starts_with('.') {
+                    ext = ext[1..].to_string();
+                }
+                ext
+            })
+            .collect();
+
+        // patterns compile
+        for pattern in &self.patterns {
+            let pattern_lower = pattern.to_lowercase();
+            if let Ok(p) = glob::Pattern::new(&pattern_lower) {
+                self.compiled_patterns.push(p);
+            } else {
+                tracing::warn!("Invalid pattern: {:?}", pattern_lower);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,26 +74,40 @@ pub struct Config {
     pub exclude_hidden: bool,
 }
 
-pub fn load_config(path: &std::path::Path) -> Result<Config> {
-    let content: String = std::fs::read_to_string(path)?;
-    let mut config: Config = toml::from_str(&content)?;
+impl Config {
+    pub fn load(path: &std::path::Path) -> Result<Self> {
+        let content: String = std::fs::read_to_string(path)?;
+        let mut config: Config = toml::from_str(&content)?;
 
-    for rule in &mut config.rules {
-        for pattern in &rule.patterns {
-            if let Ok(pattern) = glob::Pattern::new(pattern) {
-                rule.compiled_patterns.push(pattern);
-            } else {
-                tracing::warn!("Invalid pattern: {:?}", pattern);
-            }
+        if !config.source_dir.exists() {
+            return Err(anyhow::anyhow!(
+                "Source directory does not exist: {:?}",
+                config.source_dir
+            ));
+        }
+
+        config.sanitize();
+
+        Ok(config)
+    }
+
+    pub fn sanitize(&mut self) {
+        // temp_extensions sanitize
+        self.temp_extensions = self
+            .temp_extensions
+            .iter()
+            .map(|ext| {
+                let mut ext = ext.clone().to_lowercase();
+                if ext.starts_with('.') {
+                    ext = ext[1..].to_string();
+                }
+                ext
+            })
+            .collect();
+
+        // rules sanitize
+        for rule in &mut self.rules {
+            rule.sanitize();
         }
     }
-
-    if !config.source_dir.exists() {
-        return Err(anyhow::anyhow!(
-            "Source directory does not exist: {:?}",
-            config.source_dir
-        ));
-    }
-
-    Ok(config)
 }
