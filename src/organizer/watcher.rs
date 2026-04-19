@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
-use crate::file_ops::{remove_empty_dirs, Session};
+use crate::file_ops::{Session, remove_empty_dirs};
 use crate::organizer::organize;
 
 /// Global lock to prevent the watcher from reacting to our own file movements
