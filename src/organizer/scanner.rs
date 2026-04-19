@@ -1,6 +1,7 @@
 //! Directory scanning and organization logic
 
 use anyhow::Result;
+use rayon::prelude::*;
 use std::path::PathBuf;
 use tracing::info;
 use walkdir::WalkDir;
@@ -19,41 +20,47 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<Vec<MoveRecord>> {
         ));
     }
 
-    let mut history: Vec<MoveRecord> = Vec::new();
-
     if dry_run {
         info!("[DRY RUN] Scanning {:?}...", config.source_dir);
     } else {
         info!("Scanning {:?}...", config.source_dir);
     }
 
-    for entry in WalkDir::new(&config.source_dir)
+    // 1. Collect all files that need to be processed (Sequential)
+    // WalkDir is not easily parallelized, but collecting paths is fast.
+    let entries = collect_files(config);
+
+    // 2. Process all entries in parallel using Rayon
+    let history_results = process_files_in_parallel(entries, config, dry_run);
+
+    // Flatten Ok(Vec<Option>) -> Ok(Vec) by filtering out None values
+    history_results.map(|opts| opts.into_iter().flatten().collect())
+}
+
+fn collect_files(config: &Config) -> Vec<PathBuf> {
+    let entries: Vec<PathBuf> = WalkDir::new(&config.source_dir)
         .min_depth(1)
         .into_iter()
         .filter_entry(|e| {
-            // Optimization: Skip scanning into destination directories or hidden folders
+            // Optimization: Skip scanning into internal directories, hidden folders, or destinations
             let name = e.file_name().to_str().unwrap_or("");
             if config.exclude_hidden && name.starts_with('.') && name != "." && name != ".." {
                 return false;
             }
 
-            // Ignore specific patterns
+            // Ignore specific internal/managed files
             if config
                 .ignore_patterns
                 .iter()
                 .any(|pattern| name == *pattern)
-            {
-                return false;
-            }
-
-            if name == config.trash_dir.to_str().unwrap_or("")
+                || name == config.trash_dir.to_str().unwrap_or("")
                 || name == config.unknown_dir.to_str().unwrap_or("")
                 || name == config.history_file
             {
                 return false;
             }
 
-            // Ignore destination directories
+            // Ignore destination directories of all rules
             for rule in &config.rules {
                 if name == rule.destination.to_str().unwrap_or("") {
                     return false;
@@ -61,30 +68,29 @@ pub fn organize(config: &Config, dry_run: bool) -> Result<Vec<MoveRecord>> {
             }
             true
         })
-        .filter_map(|e: std::result::Result<walkdir::DirEntry, walkdir::Error>| e.ok())
-    {
-        if entry.file_type().is_file() {
-            let path: &std::path::Path = entry.path();
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .map(|e| e.path().to_path_buf())
+        .collect();
+    entries
+}
 
-            // cleanup temp file
-            if is_temp_file(path, &config.temp_extensions) {
+fn process_files_in_parallel(entries: Vec<PathBuf>, config: &Config, dry_run: bool) -> Result<Vec<Option<MoveRecord>>> {
+    let history_results: Result<Vec<Option<MoveRecord>>> = entries
+        .into_par_iter()
+        .map(|path| {
+            // decide where the file should go
+            if is_temp_file(&path, &config.temp_extensions) {
                 let trash_dir: PathBuf = config.source_dir.join(&config.trash_dir);
-                if let Some(record) = move_file(path, &trash_dir, dry_run)? {
-                    history.push(record);
-                }
-            } else if let Some(rule) = find_rule_for_file(path, &config.rules) {
-                let dest_dir: PathBuf = config.source_dir.join(rule.destination.clone());
-                if let Some(record) = move_file(path, &dest_dir, dry_run)? {
-                    history.push(record);
-                }
+                move_file(&path, &trash_dir, dry_run)
+            } else if let Some(rule) = find_rule_for_file(&path, &config.rules) {
+                let dest_dir: PathBuf = config.source_dir.join(&rule.destination);
+                move_file(&path, &dest_dir, dry_run)
             } else {
                 let unknown_dir: PathBuf = config.source_dir.join(&config.unknown_dir);
-                if let Some(record) = move_file(path, &unknown_dir, dry_run)? {
-                    history.push(record);
-                }
+                move_file(&path, &unknown_dir, dry_run)
             }
-        }
-    }
-
-    Ok(history)
+        })
+        .collect();
+    history_results
 }
