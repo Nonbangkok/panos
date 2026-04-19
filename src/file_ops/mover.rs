@@ -28,14 +28,15 @@ pub fn move_file(
 
     // Handle conflict
     if final_dest.exists() && src_path != final_dest {
-        let stem: &str = src_path
-            .file_stem()
-            .and_then(|s: &std::ffi::OsStr| s.to_str())
-            .unwrap_or("file");
-        let extension: &str = src_path
-            .extension()
-            .and_then(|e: &std::ffi::OsStr| e.to_str())
-            .unwrap_or("");
+        let filename = src_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid source filename"))?;
+
+        let (stem, extension) = match filename.rfind('.') {
+            Some(i) if i > 0 && i < filename.len() - 1 => (&filename[..i], &filename[i + 1..]),
+            _ => (filename, ""),
+        };
 
         let mut count: i32 = 1;
         while final_dest.exists() {
