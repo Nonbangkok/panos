@@ -2,11 +2,13 @@
 
 use anyhow::Result;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::info;
 use walkdir::WalkDir;
 
 use crate::config::Config;
+use crate::file_ops::hashing::*;
 use crate::file_ops::history::MoveRecord;
 use crate::file_ops::move_file;
 use crate::rules::{find_rule_for_file, is_temp_file};
@@ -35,11 +37,120 @@ pub fn organize(
     // WalkDir is not easily parallelized, but collecting paths is fast.
     let entries = collect_files(config, reporter);
 
-    // 2. Process all entries in parallel using Rayon
-    let history_results = process_files_in_parallel(entries, config, dry_run, reporter);
+    // 2. Identify duplicates
+    let (unique_entries, duplicates) = identify_duplicates(entries, reporter);
 
-    // Flatten Ok(Vec<Option>) -> Ok(Vec) by filtering out None values
-    history_results.map(|opts| opts.into_iter().flatten().collect())
+    let mut history = Vec::new();
+
+    // 3. Process all entries in parallel using Rayon
+    let unique_results = process_files_in_parallel(unique_entries, config, dry_run, reporter)?;
+
+    history.extend(unique_results.into_iter().flatten());
+
+    let duplicate_results = process_duplicates(duplicates, config, dry_run, reporter)?;
+
+    history.extend(duplicate_results.into_iter().flatten());
+
+    Ok(history)
+}
+
+fn identify_duplicates(
+    entries: Vec<PathBuf>,
+    reporter: &dyn ProgressReporter,
+) -> (Vec<PathBuf>, Vec<(PathBuf, PathBuf)>) {
+    reporter.start(None, "Identifying duplicate files...".to_string());
+
+    // ด่านที่ 1: จัดกลุ่มตามขนาด (ประหยัดพลังงานที่สุด)
+    let mut by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();
+    for path in &entries {
+        if let Ok(size) = get_file_size(&path) {
+            by_size.entry(size).or_default().push(path.clone());
+        }
+    }
+
+    let mut unique_entries = Vec::new();
+    let mut duplicates = Vec::new();
+
+    for (_size, paths) in by_size {
+        // Unique Check (Size)
+        if paths.len() == 1 {
+            unique_entries.push(paths[0].clone());
+            continue;
+        }
+
+        // Partial Check (First 4KB)
+        let mut by_partial: HashMap<String, Vec<PathBuf>> = HashMap::new();
+        for path in &paths {
+            reporter.update(
+                0,
+                format!(
+                    "⚡️ Analyzing: {}",
+                    path.file_name()
+                        .unwrap_or_default()
+                        .to_str()
+                        .unwrap_or("unknown")
+                ),
+            );
+            if let Ok(h) = calculate_partial_hash(&path) {
+                by_partial.entry(h).or_default().push(path.clone());
+            } else {
+                unique_entries.push(path.clone());
+            }
+        }
+
+        // Final Check (Full Hash)
+        for (_p_hash, p_paths) in by_partial {
+            if p_paths.len() == 1 {
+                unique_entries.push(p_paths[0].clone());
+                continue;
+            }
+
+            let mut by_full: HashMap<String, Vec<PathBuf>> = HashMap::new();
+            for path in &p_paths {
+                reporter.update(
+                    0,
+                    format!(
+                        "⚡️ Analyzing: {}",
+                        path.file_name()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or("unknown")
+                    ),
+                );
+                if let Ok(f_hash) = calculate_full_hash(&path) {
+                    by_full.entry(f_hash).or_default().push(path.clone());
+                } else {
+                    unique_entries.push(path.clone());
+                }
+            }
+
+            for (_f_hash, f_paths) in by_full {
+                // Unique file
+                unique_entries.push(f_paths[0].clone());
+                // Duplicate files
+                for dup in f_paths.iter().skip(1) {
+                    reporter.update(
+                        0,
+                        format!(
+                            "Found duplicate: {}",
+                            dup.file_name()
+                                .unwrap_or_default()
+                                .to_str()
+                                .unwrap_or("unknown")
+                        ),
+                    );
+                    duplicates.push((dup.clone(), f_paths[0].clone()));
+                }
+            }
+        }
+    }
+
+    reporter.finish(format!(
+        "Found {} unique files, {} duplicates",
+        unique_entries.len(),
+        duplicates.len()
+    ));
+    (unique_entries, duplicates)
 }
 
 fn collect_files(config: &Config, reporter: &dyn ProgressReporter) -> Vec<PathBuf> {
@@ -124,4 +235,41 @@ fn process_files_in_parallel(
 
     reporter.finish("Processing complete!".to_string());
     history_results
+}
+
+fn process_duplicates(
+    duplicates: Vec<(PathBuf, PathBuf)>,
+    config: &Config,
+    dry_run: bool,
+    reporter: &dyn ProgressReporter,
+) -> Result<Vec<Option<MoveRecord>>> {
+    if duplicates.is_empty() {
+        return Ok(vec![]);
+    }
+
+    reporter.start(
+        Some(duplicates.len() as u64),
+        "Moving duplicates...".to_string(),
+    );
+
+    let results: Result<Vec<Option<MoveRecord>>> = duplicates
+        .into_par_iter()
+        .map(|(path, _original)| {
+            let file_name = path
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("No filename"))?;
+
+            let dest_path = config
+                .source_dir
+                .join(&config.duplicates_dir)
+                .join(file_name);
+
+            let res = move_file(&path, &dest_path, dry_run);
+            reporter.update(1, "".to_string());
+            res
+        })
+        .collect();
+
+    reporter.finish("Duplicates processed!".to_string());
+    results
 }
