@@ -1,5 +1,8 @@
 /target
+/model_assets
 Cargo.lock
 
 /.test_data
 .DS_Store
+
+.venv/

@@ -11,7 +11,8 @@ fn test_scanner_empty_dir() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let config = test_config(tmp.path());
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 0);
     Ok(())
 }
@@ -27,7 +28,8 @@ fn test_scanner_deep_nesting() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("deep.jpg"));
     Ok(())
@@ -44,7 +46,8 @@ fn test_scanner_ignore_patterns_exact() -> anyhow::Result<()> {
     config.ignore_patterns = vec!["ignore_me.txt".to_string()];
     config.rules = vec![test_rule("Docs", vec!["txt"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("keep_me.txt"));
     Ok(())
@@ -67,7 +70,8 @@ fn test_scanner_internal_dirs_protection() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 0);
     Ok(())
 }
@@ -85,7 +89,8 @@ fn test_scanner_destination_dirs_protection() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("new.jpg"));
     Ok(())
@@ -105,7 +110,8 @@ fn test_scanner_recursive_hidden_exclusion() -> anyhow::Result<()> {
     config.exclude_hidden = true;
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("public.jpg"));
     Ok(())
@@ -127,7 +133,8 @@ fn test_scanner_filtering_logic() -> anyhow::Result<()> {
     config.exclude_hidden = true;
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("valid_photo.jpg"));
 
@@ -147,7 +154,8 @@ fn test_scanner_mixed_rules_priority() -> anyhow::Result<()> {
         test_rule("Archives", vec!["pdf"], vec![]),
     ];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     // Check the destination folder name (parent of the destination file)
     let dest_folder = history[0]
@@ -169,7 +177,8 @@ fn test_scanner_case_insensitivity() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("IMAGE.JPG"));
     Ok(())
@@ -186,7 +195,8 @@ fn test_scanner_glob_patterns() -> anyhow::Result<()> {
     config.rules = vec![test_rule("Invoices", vec![], vec!["invoice_*.pdf"])];
     config.unknown_dir = PathBuf::from(".unknown");
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 2); // 1 match + 1 unknown
 
     // Find the move record for the invoice
@@ -215,7 +225,8 @@ fn test_scanner_no_extension_files() -> anyhow::Result<()> {
     config.rules = vec![test_rule("Docs", vec!["txt"], vec![])];
     config.unknown_dir = PathBuf::from("Other");
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].destination.to_str().unwrap().contains("Other"));
     Ok(())
@@ -238,7 +249,8 @@ fn test_scanner_large_extension_list() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", extensions, vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 9);
     Ok(())
 }
@@ -256,7 +268,8 @@ fn test_scanner_overlapping_rules_glob_vs_ext() -> anyhow::Result<()> {
         test_rule("Docs", vec!["pdf"], vec![]),
     ];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     let dest_folder = history[0]
         .destination
@@ -277,7 +290,8 @@ fn test_scanner_rule_with_dots_in_extension() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Archives", vec!["tar.gz"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("archive.tar.gz"));
     Ok(())
@@ -294,7 +308,8 @@ fn test_scanner_temp_file_cleanup() -> anyhow::Result<()> {
     config.temp_extensions = vec!["tmp".to_string(), "part".to_string()];
     config.trash_dir = PathBuf::from("TrashBin");
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 2);
     for h in history {
         assert!(h.destination.to_str().unwrap().contains("TrashBin"));
@@ -317,7 +332,8 @@ fn test_scanner_unicode_and_special_chars() -> anyhow::Result<()> {
         test_rule("Docs", vec!["txt"], vec![]),
     ];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 3);
     Ok(())
 }
@@ -337,7 +353,8 @@ fn test_scanner_massive_file_count_batch() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 200);
     Ok(())
 }
@@ -353,7 +370,8 @@ fn test_scanner_dry_run_state_consistency() -> anyhow::Result<()> {
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
     // Dry run
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
 
     // Verify file still exists in original location
@@ -379,7 +397,8 @@ fn test_scanner_duplicate_filenames_different_folders() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 2);
     Ok(())
 }
@@ -400,7 +419,8 @@ fn test_scanner_extremely_long_path() -> anyhow::Result<()> {
     let mut config = test_config(root);
     config.rules = vec![test_rule("Images", vec!["jpg"], vec![])];
 
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
     assert!(history[0].source.ends_with("deep_file.jpg"));
     Ok(())

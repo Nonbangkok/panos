@@ -10,6 +10,7 @@ pub struct Rule {
     pub name: String,
     pub extensions: Vec<String>,
     pub patterns: Vec<String>,
+    pub semantic_label: Option<String>,
     pub destination: PathBuf,
 
     #[serde(skip)]
@@ -22,6 +23,7 @@ impl Default for Rule {
             name: String::new(),
             extensions: vec![],
             patterns: vec![],
+            semantic_label: None,
             destination: PathBuf::new(),
             compiled_patterns: vec![],
         }
@@ -87,6 +89,9 @@ pub struct Config {
     pub unknown_dir: PathBuf,
     pub history_file: String,
     pub exclude_hidden: bool,
+    pub model_dir: PathBuf,
+    pub ai_enabled: bool,
+    pub ai_threshold: f32,
 }
 
 impl Default for Config {
@@ -104,6 +109,9 @@ impl Default for Config {
             unknown_dir: PathBuf::from(".panos_unknown"),
             history_file: ".history.json".to_string(),
             exclude_hidden: true,
+            model_dir: PathBuf::from("model_assets"),
+            ai_enabled: false,
+            ai_threshold: 0.55,
         }
     }
 }

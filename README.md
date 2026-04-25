@@ -21,6 +21,7 @@
 - ⏪ **Smart Undo**: Session-based undo functionality with **parallelized restoration** using `Rayon` for ultra-fast reversal of operations.
 - 🧹 **Trash System**: Specialized handling for temporary files (`.tmp`, `.crdownload`, `.cache`), moving them to a dedicated `.panos_trash` for safe review.
 - 🌳 **Deep Clean**: Recursive removal of empty directories after organization to keep your filesystem pristine.
+- 🧠 **AI Semantic Matching**: Fallback mechanism using BERT-based embeddings to categorize files that don't match standard rules.
 
 ---
 
@@ -52,6 +53,24 @@ cargo build --release
 # Undo the last organization session
 ./target/release/panos --undo
 ```
+
+### 🧠 Brain Setup (AI)
+
+To enable AI semantic matching, you need to export the model assets using Python:
+
+```bash
+# 1. Create and activate a virtual environment (optional but recommended)
+python -m venv .venv
+source .venv/bin/activate
+
+# 2. Install dependencies
+pip install optimum[onnxruntime] transformers
+
+# 3. Export the model to ONNX
+python scripts/export_onnx.py
+```
+
+This script will download `bge-small-en-v1.5` and prepare it for use in Rust.
 
 ---
 

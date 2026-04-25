@@ -9,6 +9,7 @@ use panos::{
     Args, Config,
     file_ops::{MoveRecord, Session, check_integrity, remove_empty_dirs},
     organizer::{organize, run_undo, watch_mode},
+    rules::PanosAI,
     ui::IndicatifReporter,
 };
 
@@ -29,6 +30,17 @@ fn main() -> Result<()> {
     // Load config
     let mut config = Config::load(&args.config)?;
 
+    let mut ai_engine = if config.ai_enabled {
+        Some(PanosAI::new(
+            config.model_dir.to_str().ok_or(anyhow::anyhow!(
+                "Failed to convert model directory to string"
+            ))?,
+            &config.rules,
+        )?)
+    } else {
+        None
+    };
+
     // CLI override for source directory
     if let Some(source) = args.source {
         config.source_dir = source;
@@ -46,7 +58,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let history: Vec<MoveRecord> = organize(&config, args.dry_run, &reporter)?;
+    let history: Vec<MoveRecord> = organize(&config, args.dry_run, &reporter, &mut ai_engine)?;
 
     check_integrity(&history, args.dry_run, &reporter)?;
 
@@ -60,7 +72,7 @@ fn main() -> Result<()> {
     remove_empty_dirs(&config.source_dir, args.dry_run, &history, &reporter)?;
 
     if args.watch {
-        watch_mode(&config, args.dry_run)?;
+        watch_mode(&config, args.dry_run, &mut ai_engine)?;
     }
 
     info!("PANOS completed successfully.");

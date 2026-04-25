@@ -56,7 +56,8 @@ fn test_full_organization_flow() -> anyhow::Result<()> {
     config.exclude_hidden = false;
 
     // 4. Run organization
-    let history = organize(&config, false, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, false, &NoopReporter, &mut ai)?;
     remove_empty_dirs(&source_path, false, &history, &NoopReporter)?;
 
     // 5. Assertions
@@ -103,7 +104,8 @@ fn test_dry_run_does_not_move_files() -> anyhow::Result<()> {
     config.exclude_hidden = false;
 
     // Run organization in dry_run mode
-    organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    organize(&config, true, &NoopReporter, &mut ai)?;
 
     // File should still be in source
     assert!(file1.exists());
@@ -194,7 +196,8 @@ fn test_comprehensive_scenario() -> anyhow::Result<()> {
     config.exclude_hidden = false;
 
     // 4. Run
-    organize(&config, false, &NoopReporter)?;
+    let mut ai = None;
+    organize(&config, false, &NoopReporter, &mut ai)?;
 
     // 5. Verification
     assert!(source_path.join("images/photo.jpg").exists());
@@ -256,7 +259,8 @@ fn test_undo_operation() -> anyhow::Result<()> {
     config.exclude_hidden = false;
 
     // 2. Organize
-    let history = organize(&config, false, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, false, &NoopReporter, &mut ai)?;
     assert!(!history.is_empty());
 
     // Save session manually (simulating main.rs behavior)
@@ -380,7 +384,8 @@ fn test_watcher_stress_simulation() -> anyhow::Result<()> {
     }
 
     // Run organization (as watch mode would trigger)
-    let history = organize(&config, false, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, false, &NoopReporter, &mut ai)?;
 
     // Should have 100 moves
     assert_eq!(history.len(), 100);
@@ -420,7 +425,8 @@ fn test_dry_run_empty_dir_prediction() -> anyhow::Result<()> {
     config.exclude_hidden = false;
 
     // Run in dry run
-    let history = organize(&config, true, &NoopReporter)?;
+    let mut ai = None;
+    let history = organize(&config, true, &NoopReporter, &mut ai)?;
     assert_eq!(history.len(), 1);
 
     // This should now detect that a/b/c, a/b, and a would be empty

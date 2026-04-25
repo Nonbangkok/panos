@@ -11,6 +11,7 @@ use crate::config::Config;
 use crate::file_ops::hashing::*;
 use crate::file_ops::history::MoveRecord;
 use crate::file_ops::move_file;
+use crate::rules::ai::PanosAI;
 use crate::rules::{find_rule_for_file, is_temp_file};
 use crate::ui::ProgressReporter;
 
@@ -19,6 +20,7 @@ pub fn organize(
     config: &Config,
     dry_run: bool,
     reporter: &dyn ProgressReporter,
+    ai: &mut Option<PanosAI>,
 ) -> Result<Vec<MoveRecord>> {
     if !config.source_dir.exists() {
         return Err(anyhow::anyhow!(
@@ -42,13 +44,29 @@ pub fn organize(
 
     let mut history = Vec::new();
 
-    // 3. Process all entries in parallel using Rayon
-    let unique_results = process_files_in_parallel(unique_entries, config, dry_run, reporter)?;
+    // 3. Process all entries in parallel using Rayon (Rule-based)
+    let results = process_files_in_parallel(unique_entries, config, dry_run, reporter)?;
 
-    history.extend(unique_results.into_iter().flatten());
+    // 4. Separate processed files and pending files for AI
+    let mut pending_files = Vec::new();
+    for (path, res) in results {
+        if let Some(record) = res {
+            history.push(record);
+        } else {
+            pending_files.push(path);
+        }
+    }
+
+    // 5. Process pending files with AI
+    let (ai_history, still_pending) =
+        process_files_with_ai(pending_files, config, dry_run, reporter, ai)?;
+    history.extend(ai_history);
+
+    // 6. Move any remaining files to Unknown directory
+    let unknown_history = process_unknown_files(still_pending, config, dry_run, reporter)?;
+    history.extend(unknown_history);
 
     let duplicate_results = process_duplicates(duplicates, config, dry_run, reporter)?;
-
     history.extend(duplicate_results.into_iter().flatten());
 
     Ok(history)
@@ -205,16 +223,18 @@ fn process_files_in_parallel(
     config: &Config,
     dry_run: bool,
     reporter: &dyn ProgressReporter,
-) -> Result<Vec<Option<MoveRecord>>> {
+) -> Result<Vec<(PathBuf, Option<MoveRecord>)>> {
     let total_files = entries.len() as u64;
     reporter.start(Some(total_files), "Organizing files...".to_string());
 
-    let history_results: Result<Vec<Option<MoveRecord>>> = entries
+    let history_results: Result<Vec<(PathBuf, Option<MoveRecord>)>> = entries
         .into_par_iter()
         .map(|path| {
             let file_name = path
                 .file_name()
-                .ok_or_else(|| anyhow::anyhow!("No filename"))?;
+                .ok_or_else(|| anyhow::anyhow!("No filename"))?
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid filename encoding"))?;
 
             let result = if is_temp_file(&path, &config.temp_extensions) {
                 let trash_path: PathBuf = config.source_dir.join(&config.trash_dir).join(file_name);
@@ -223,18 +243,86 @@ fn process_files_in_parallel(
                 let dest_path: PathBuf = config.source_dir.join(&rule.destination).join(file_name);
                 move_file(&path, &dest_path, dry_run)
             } else {
-                let unknown_path: PathBuf =
-                    config.source_dir.join(&config.unknown_dir).join(file_name);
-                move_file(&path, &unknown_path, dry_run)
+                Ok(None)
             };
 
             reporter.update(1, "".to_string());
-            result
+            result.map(|res| (path, res))
         })
         .collect();
 
     reporter.finish("Processing complete!".to_string());
     history_results
+}
+
+fn process_files_with_ai(
+    pending_files: Vec<PathBuf>,
+    config: &Config,
+    dry_run: bool,
+    reporter: &dyn ProgressReporter,
+    ai: &mut Option<PanosAI>,
+) -> Result<(Vec<MoveRecord>, Vec<PathBuf>)> {
+    let mut history = Vec::new();
+    let mut still_pending = Vec::new();
+
+    if pending_files.is_empty() {
+        return Ok((history, still_pending));
+    }
+
+    if let Some(ai_engine) = ai {
+        info!("Processing {} files with AI...", pending_files.len());
+        for path in pending_files {
+            let file_name = path
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("No filename"))?
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid filename encoding"))?;
+
+            if let Some(rule) = ai_engine.determine_rule(file_name, config, &config.rules) {
+                let dest_path = config.source_dir.join(&rule.destination).join(file_name);
+                if let Ok(Some(record)) = move_file(&path, &dest_path, dry_run) {
+                    history.push(record);
+                }
+                reporter.update(1, "".to_string());
+            } else {
+                still_pending.push(path);
+            }
+        }
+    } else {
+        still_pending = pending_files;
+    }
+
+    Ok((history, still_pending))
+}
+
+fn process_unknown_files(
+    pending_files: Vec<PathBuf>,
+    config: &Config,
+    dry_run: bool,
+    reporter: &dyn ProgressReporter,
+) -> Result<Vec<MoveRecord>> {
+    let mut history = Vec::new();
+
+    if pending_files.is_empty() {
+        return Ok(history);
+    }
+
+    info!("Moving {} unknown files...", pending_files.len());
+    for path in pending_files {
+        let file_name = path
+            .file_name()
+            .ok_or_else(|| anyhow::anyhow!("No filename"))?
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid filename encoding"))?;
+
+        let unknown_path = config.source_dir.join(&config.unknown_dir).join(file_name);
+        if let Ok(Some(record)) = move_file(&path, &unknown_path, dry_run) {
+            history.push(record);
+        }
+        reporter.update(1, "".to_string());
+    }
+
+    Ok(history)
 }
 
 fn process_duplicates(

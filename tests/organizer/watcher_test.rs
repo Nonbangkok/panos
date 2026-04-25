@@ -18,7 +18,8 @@ fn test_watcher_moves_new_file() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
 
     thread::sleep(Duration::from_millis(500));
@@ -55,7 +56,8 @@ fn test_watcher_batch_processing_and_conflicts() -> anyhow::Result<()> {
     fs::write(docs_dir.join("report.pdf"), "old report")?;
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -94,7 +96,8 @@ fn test_watcher_basic_flow_simple() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -127,7 +130,8 @@ fn test_watcher_batch_and_conflict_resolution() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -155,7 +159,8 @@ fn test_watcher_unicode_and_special_names() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -181,7 +186,8 @@ fn test_watcher_should_not_move_ignored_files() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -206,7 +212,8 @@ fn test_watcher_massive_burst_100_files() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -233,7 +240,8 @@ fn test_watcher_nested_recursive_organization() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -259,7 +267,8 @@ fn test_watcher_unknown_file_type_handling() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -284,7 +293,8 @@ fn test_watcher_empty_directory_cleanup_chain() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -313,7 +323,8 @@ fn test_watcher_massive_filename_length() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 
@@ -340,7 +351,8 @@ fn test_watcher_exclude_hidden_files() -> anyhow::Result<()> {
 
     let config_clone = config.clone();
     thread::spawn(move || {
-        let _ = watch_mode(&config_clone, false);
+        let mut ai = None;
+        let _ = watch_mode(&config_clone, false, &mut ai);
     });
     thread::sleep(Duration::from_millis(500));
 

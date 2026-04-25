@@ -19,21 +19,54 @@ duplicates_dir = ".panos_duplicates" # Directory to move files to when duplicate
 unknown_dir = ".panos_unknown" # Directory to move files to when unknown
 history_file = ".panos_history.json" # File to store history of moves
 exclude_hidden = false # Exclude hidden files
+model_dir = "model_assets"
+ai_enabled = true
+ai_threshold = 0.65
 
 [[rules]]
-name = "Images"
-extensions = ["jpg", "jpeg", "png", "gif"]
-patterns = []
-destination = "Images"
-
-[[rules]]
-name = "Documents"
-extensions = ["pdf", "docx", "txt"]
-patterns = []
-destination = "Docs"
+name = "Music"
+extensions = ["mp3", "wav", "flac"]
+semantic_label = "music, audio, songs, soundtrack, lofi"
+destination = "Media/Music"
 
 [[rules]]
 name = "Videos"
 extensions = ["mp4", "mkv", "mov"]
-patterns = []
-destination = "Videos"
+semantic_label = "videos, movies, family footage, cinema"
+destination = "Media/Videos"
+
+[[rules]]
+name = "Programming"
+extensions = ["rs", "py", "js", "ts", "go", "c", "cpp"]
+semantic_label = "programming source code, script, software logic, development"
+destination = "Dev/Code"
+
+[[rules]]
+name = "Financial"
+extensions = ["pdf", "xlsx", "csv"]
+semantic_label = "financial invoice, billing, bank statement, tax report"
+destination = "Documents/Finance"
+
+[[rules]]
+name = "Health"
+extensions = ["pdf", "jpg", "png"]
+semantic_label = "medical records, health reports, blood test, doctor"
+destination = "Documents/Health"
+
+[[rules]]
+name = "Travel"
+extensions = ["pdf", "docx", "jpg"]
+semantic_label = "travel itinerary, flight ticket, hotel booking, vacation plan"
+destination = "Documents/Travel"
+
+[[rules]]
+name = "Work"
+extensions = ["docx", "pptx", "pdf"]
+semantic_label = "business meeting minutes, corporate presentation, work project"
+destination = "Documents/Work"
+
+[[rules]]
+name = "Books"
+extensions = ["pdf", "epub", "mobi"]
+semantic_label = "ebooks, literature, reading material, educational guide"
+destination = "Documents/Library"
